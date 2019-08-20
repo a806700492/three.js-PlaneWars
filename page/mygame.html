@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title></title>
+    <style>
+
+    </style>
+    <link rel="stylesheet" href="../css/iconfont.css">
+    <link rel="stylesheet" href="../css/cdTime.css">
+    <link rel="stylesheet" href="../css/mygame.css">
+    <script src="../js/three.min.js"></script>
+    <script src="../js/cdTime.js"></script>
+    <script src="../js/state.js"></script>
+</head>
+
+<body>
+    <div class="msgbox">
+        <h4>威哥无敌号</h4>
+        <div class="bor">
+            <p>生命值：<span id="life">100</span></p>
+            <div class="bar" id="bar"></div>
+
+        </div>
+
+        <div class="bor">
+            <p>能量：<span id="power">0</span></p>
+            <div class="bar" id="bar2" style="width: 0"></div>
+        </div>
+    </div>
+
+    <div class="skill">
+        <div class="q-time" style="margin-right: 18px;">
+            <span class="key-name">q</span>
+            <span class="key-num">20</span>
+            <div id="q-time"></div>
+            <i class="iconfont iconbaohu"></i>
+        </div>
+        <div class="q-time">
+            <span class="key-name">w</span>
+            <span class="key-num">90</span>
+            <div id="w-time"></div>
+            <i class="iconfont iconbimicons-"></i>
+        </div>
+    </div>
+
+    <div id="world"></div>
+    <script src="../js/init_scene.js"></script>
+    <script>
+        let stats, scene, camera, fieldOfView, aspectRatio, nearPlane, farPlane, HEIGHT, WIDTH, renderer, container,
+            hemisphereLight, shadowLight, sea_my, sky_my, airplane, 
+            arr = [],
+            init_el = [],
+            level = 1,
+            now_level = 1,
+            enemyNumber = 0,
+            enemyMeshAry = [],
+            boom1 = null,
+            boom2 = null,
+            blood_time,
+            k = null,
+            c = null,
+            state = 0,
+            crr = [],
+            all_time = null,
+            brr = [],
+            arrEnemy = [],
+            num = 0,
+            dom = document.getElementById("life"),
+            dombar = document.getElementById("bar"),
+            dom2 = document.getElementById("power"),
+            dombar2 = document.getElementById("bar2"),
+            q_time = new CdTime("q-time", 5, qTime),
+            q_num = 0,
+            w_time = new CdTime("w-time", 20, wTime),
+            w_num = 0,
+            q_i = document.querySelector(".iconbaohu"),
+            w_i = document.querySelector(".iconbimicons-");
+
+        let mousePos = {
+            x: 0,
+            y: 0
+        };
+
+        let Colors = {
+            red: 0xf25346,
+            white: 0xd8d0d1,
+            brown: 0x59332e,
+            pink: 0xf5986e,
+            brownDark: 0x23190f,
+            blue: 0x68c3c0
+        };
+
+        function createSea() {
+            sea_my = new sea();
+
+            // push it a little bit at the bottom of the scene
+            sea_my.mesh.position.y = -600;
+
+            // add the mesh of the sea to the scene
+            scene.add(sea_my.mesh);
+        }
+
+        function createSky() {
+            sky_my = new Sky();
+            sky_my.mesh.position.y = -600;
+            scene.add(sky_my.mesh);
+        }
+
+        function createPlane() {
+            airplane = new AirPlane();
+            airplane.mesh.scale.set(.25, .25, .25);
+            airplane.mesh.position.set(-50, 100, 0)
+            airplane.death();
+
+            // airplane.mesh.position.x = -80;
+
+            scene.add(airplane.mesh);
+        }
+
+        function createEnemy() {
+            for (let i = 0; i < 5; i++) {
+                let enemy = new Enemy();
+                enemy.mesh.scale.set(.25, .25, .25);
+                enemy.mesh.position.set(250, 100, 0);
+                enemy.mesh.rotation.y = -180 * Math.PI / 180;
+                init_el.push(enemy)
+            }
+
+        }
+
+
+
+        function loop() {
+            // Rotate the propeller, the sea and the sky
+            airplane.propeller.rotation.x += 0.3;
+            sea_my.moveWaves();
+            sky_my.mesh.rotation.z += .01;
+            updatePlane()
+            gameRhythm()
+            // render the scene
+            stats.update();
+            renderer.render(scene, camera);
+
+            // call the loop function again
+            all_time = requestAnimationFrame(loop);
+        }
+
+        function handleMouseMove(event) {
+            // here we are converting the mouse position value received
+            // to a normalized value varying between -1 and 1;
+            // this is the formula for the horizontal axis:
+
+            //将鼠标x,y坐标转化为 -1 ~ 1
+            var tx = -1 + (event.clientX / WIDTH) * 2;
+            var ty = 1 - (event.clientY / HEIGHT) * 2;
+
+            mousePos = {
+                x: tx,
+                y: ty
+            };
+        }
+
+        function updatePlane() {
+
+            // let's move the airplane between -100 and 100 on the horizontal axis,
+            // and between 25 and 175 on the vertical axis,
+            // depending on the mouse position which ranges between -1 and 1 on both axes;
+            // to achieve that we use a normalize function (see below)
+
+            if (airplane.lifeValue <= 0) {
+                return false
+            }
+
+            var targetX = normalize(mousePos.x, -1, 1, -150, 20);
+            var targetY = normalize(mousePos.y, -1, 1, 50, 175);
+
+            airplane.mesh.position.x = targetX;
+            airplane.mesh.position.y += (targetY - airplane.mesh.position.y) * 0.1;
+            airplane.mesh.rotation.z = (targetY - airplane.mesh.position.y) * 0.0128;
+            airplane.mesh.rotation.x = (airplane.mesh.position.y - targetY) * 0.0064;
+        }
+
+        function normalize(v, vmin, vmax, tmin, tmax) {
+
+            var nv = Math.max(Math.min(v, vmax), vmin);
+            var dv = vmax - vmin;
+            var pc = (nv - vmin) / dv;
+            var dt = tmax - tmin;
+            var tv = tmin + (pc * dt);
+
+            return tv;
+        }
+
+        function handClick(event) {
+            let rot = -90 * Math.PI / 180;
+            let b = arrEnemy.length > 0 ? c : 0;
+            let a = new Bullet(airplane.mesh.position.x, airplane.mesh.position.y, rot, b);
+            a.move(3, 0)
+            scene.add(a.mesh);
+            arr.push(a)
+
+            // mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            // mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // // 通过鼠标点的位置和当前相机的矩阵计算出raycaster
+            // raycaster.setFromCamera(mouse, camera);
+
+            // // 获取raycaster直线和所有模型相交的数组集合
+            // var intersects = raycaster.intersectObjects(scene.children,true);
+
+            // console.log(intersects);
+
+            // //将所有的相交的模型的颜色设置为红色，如果只需要将第一个触发事件，那就数组的第一个模型改变颜色即可
+            // for (var i = 0; i < intersects.length; i++) {
+            //     intersects[i].object.material.color.set(0xff0000);
+            // }
+        }
+        // var raycaster = new THREE.Raycaster();
+        // var mouse = new THREE.Vector2();
+
+        function createObstacle() {
+            crr.push(airplane.mesh)
+            setInterval(() => {
+                if (state === 1) {
+                    return false
+                } else {
+                    let o1 = new Obstacle();
+                    scene.add(o1.box);
+                    o1.move();
+                }
+
+            }, 1000)
+        }
+
+
+        function createBlood() {
+            blood_time = setInterval(() => {
+                let num = Math.random() * 2
+                if (num > 1) {
+                    let san = new Blood();
+                    san.move()
+                    scene.add(san.mesh);
+                }
+            }, 3500)
+        }
+
+        window.addEventListener('mousemove', handleMouseMove, false);
+        window.addEventListener('click', handClick, false);
+        // document.addEventListener('webkitvisibilitychange', function () {
+        //     if (document.webkitVisibilityState == 'hidden') {
+        //         cancelAnimationFrame(all_time);
+        //         state = 1;
+        //     } else {
+        //         requestAnimationFrame(loop);
+        //         state = 0;
+        //     }
+        // })
+
+        window.onkeydown = (e) => {
+            switch (e.keyCode) {
+                case 81:
+                    if (q_num === 0 && airplane.power >= 20) {
+                        q_num = 1;
+                        airplane.shields();
+                        power_update(-20);
+                    }
+                    break;
+
+                case 87:
+                    if (w_num === 0 && airplane.power >= 90) {
+                        w_num = 1;
+                        airplane.shockWave();
+                        w_time.start();
+                        w_i.style.display = 'none';
+                        power_update(-90);
+                    }
+                    break;
+            }
+        }
+
+        function qTime() {
+            q_num = 0;
+            q_i.style.display = 'block'
+        }
+
+        function wTime() {
+            w_num = 0;
+            w_i.style.display = 'block'
+        }
+
+        setInterval(() => {
+            power_update(1)
+        }, 1000)
+
+        function gameRhythm() {
+            switch (level) {
+                case 1:
+                    if (now_level === 1) {
+                        arrEnemy.push(init_el[0]);
+
+                        setTimeout(() => {
+                            arrEnemy[0].death(50);
+                            arrEnemy[0].bullet_move();
+                            scene.add(arrEnemy[0].mesh);
+                        }, 2000);
+
+                        now_level++;
+
+                    } else if (arrEnemy.length === 0) {
+                        level++
+                    }
+                    break;
+
+                case 2:
+                    if (now_level === 2) {
+                        arrEnemy = init_el.filter((item, index) => index >= 2)
+
+                        setTimeout(() => {
+                            for (let i = 0; i < 3; i++) {
+                                arrEnemy[i].mesh.rotation.z = 0;
+                                arrEnemy[i].lifeValue = 10;
+                                arrEnemy[i].bullet_move();
+                                scene.add(arrEnemy[i].mesh);
+                            }
+
+                            arrEnemy[0].mesh.position.set(250, 50, 0);
+                            arrEnemy[0].death(50);
+                            arrEnemy[1].mesh.position.set(250, 100, 0);
+                            arrEnemy[1].death(80);
+                            arrEnemy[2].mesh.position.set(250, 150, 0);
+                            arrEnemy[2].death(110);
+                        }, 2000)
+
+                        now_level++
+
+                    } else if (arrEnemy.length === 0) {
+                        level++
+                    }
+                    break;
+
+                case 3:
+                    if (now_level === 3) {
+                        arrEnemy.push(...init_el)
+                        setTimeout(() => {
+                            arrEnemy.forEach((item, index) => {
+                                item.mesh.rotation.z = 0;
+                                item.lifeValue = 10;
+                                item.bullet_move();
+                                scene.add(item.mesh);
+                            })
+
+                            arrEnemy[0].mesh.position.set(250, 62, 0);
+                            arrEnemy[0].death(50);
+                            arrEnemy[1].mesh.position.set(250, 137, 0);
+                            arrEnemy[1].death(50);
+                            arrEnemy[2].mesh.position.set(250, 25, 0);
+                            arrEnemy[2].death(100);
+                            arrEnemy[3].mesh.position.set(250, 100, 0);
+                            arrEnemy[3].death(100);
+                            arrEnemy[4].mesh.position.set(250, 175, 0);
+                            arrEnemy[4].death(100);
+                        }, 2000)
+
+                        now_level++
+
+                    } else if (arrEnemy.length === 0) {
+                        level++
+                    }
+                    break;
+
+                case 4:
+                    if (now_level === 4) {
+                        let boss = new Boss()
+                        arrEnemy.push(boss)
+                        setTimeout(() => {
+                            boss.mesh.position.set(250, 62, 0);
+                            boss.mesh.rotation.y = -180 * Math.PI / 180;
+                            boss.mesh.scale.set(.5, .5, .5);
+                            boss.bullet_move()
+                            boss.death(80)
+                            boss.lifeValue = 100
+                            boss.auto()
+                            scene.add(boss.mesh);
+                        }, 2000)
+
+                        now_level++
+
+                    } else if (arrEnemy.length === 0) {
+                        level++
+                    }
+                    break;
+            }
+        }
+
+
+        frame_init();
+        stats_init();
+        createScene();
+        createLights();
+        createSea();
+        createSky();
+        createEnemy();
+        createPlane();
+        loop();
+        createObstacle();
+        createBlood();
+
+        boom1 = new huan("../img/boom2.png", 10).mesh;
+        boom2 = new huan("../img/boom3.png", 20).mesh;
+    </script>
+</body>
+
+</html>

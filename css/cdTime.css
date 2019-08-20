@@ -1,0 +1,101 @@
+  .inner {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      background-color: white;
+      border: solid 1px;
+      overflow: hidden;
+      border-radius: 5px;
+  }
+
+  .cdTime {
+      position: absolute;
+      width: 100%;
+      line-height: 100px;
+      z-index: 5;
+      text-align: center;
+      color:#f25346;
+      font-size: 37px;
+      font-weight: 600
+  }
+
+  .spiner {
+      position: absolute;
+      z-index: 1;
+      top: -50px;
+      left: -50px;
+      width: 100px;
+      height: 200px;
+      transform-origin: right;
+      border-radius: 100px 0 0 100px;
+      background-color: white;
+  }
+
+  .filler {
+      position: absolute;
+      left: 50px;
+      top: -50px;
+      width: 100px;
+      height: 200px;
+      border-radius: 0px 100px 100px 0;
+      background-color: rgba(0, 0, 0,0.7);
+      opacity: 0;
+  }
+
+  .masker {
+      z-index: 0;
+      position: absolute;
+      left: -50px;
+      top: -50px;
+      width: 100px;
+      height: 200px;
+      border-radius: 100px 0px 0 100px;
+      background-color: rgba(0, 0, 0,0.7);
+  }
+
+  .ani1 {
+      animation: spin linear;
+      animation-duration: 10s;
+  }
+
+  .ani2 {
+      animation: second-half-hide steps(1, end);
+      animation-duration: 10s;
+  }
+
+  .ani3 {
+      animation: second-half-show steps(1, end);
+      animation-duration: 10s;
+  }
+
+  @keyframes spin {
+      0% {
+          transform: rotate(0deg);
+      }
+
+      100% {
+          transform: rotate(360deg);
+      }
+  }
+
+  @keyframes second-half-hide {
+      0% {
+          opacity: 1;
+      }
+
+      50%,
+      100% {
+          opacity: 0;
+      }
+  }
+
+  @keyframes second-half-show {
+      0% {
+          z-index: 3;
+      }
+
+      50%,
+      100% {
+          z-index: 0;
+      }
+  }
