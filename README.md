@@ -4,5 +4,5 @@
 ``` bash
 cd server
 node run
-localhost:7000
+[title](http://localhost:7000)
 ```
